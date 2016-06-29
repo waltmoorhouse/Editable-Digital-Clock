@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html ng-app="demoApp">
+<head>
+	<title>Editable Digital Clock Demo</title>
+	<link href='https://fonts.googleapis.com/css?family=Black+Ops+One' rel='stylesheet' type='text/css'>
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
+	
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.7/angular.min.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.7/angular-route.min.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.7/angular-resource.min.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.7/angular-sanitize.min.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.7/angular-animate.min.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.7/angular-cookies.min.js"></script>
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/1.3.3/ui-bootstrap.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/1.3.3/ui-bootstrap-tpls.min.js"></script>
+
+<script>
+var app = angular.module('demoApp', []);
+
+app.controller('DemoCtrl', ['$scope', function($scope) {
+  $scope.program = {
+    startTime: new Date('2016-01-01 12:34:00').getTime(),
+    stopTime: new Date('2016-01-01 21:43:56').getTime()
+  };
+}]);
+
+app.directive('editableDigitalClock', ['$filter', function($filter) {
+  return {
+    restrit: 'E',
+    scope: {
+      value: '='
+    },
+    template: '<input type="number" min="0" max="23" onchange="angular.element(this).scope().hourUpdate(this)"/>:<input type="number" min="0" max="59" onchange="angular.element(this).scope().minUpdate(this)"/><span>:</span><input type="number" min="0" max="59" onchange="angular.element(this).scope().secUpdate(this)"/>',
+    link: function($scope, element, attrs) {
+      var timeElement = angular.element(element);
+      var hourInputElement = angular.element(element.children()[0]);
+      var minInputElement = angular.element(element.children()[1]); //2 is the span with the colon.
+      var secInputElement = angular.element(element.children()[3]);
+
+      // This directive should have a set class so we can style it.
+      element.addClass('editable-digital-clock');
+
+      var hour = $filter('date')($scope.value, "HH");
+      hourInputElement.val(hour);
+      hourInputElement.data('original', hour);
+      hourInputElement.addClass('digital');
+
+      var min = $filter('date')($scope.value, "mm");
+      minInputElement.val(min);
+      minInputElement.data('original', min);
+      minInputElement.addClass('digital');
+
+      var showSeconds = true;
+      if (attrs['hideseconds'] && attrs['hideseconds'] == "true")
+        showSeconds = false;
+      if (showSeconds) {
+        var sec = $filter('date')($scope.value, "ss");
+        secInputElement.val(sec);
+        secInputElement.data('original', sec);
+        secInputElement.addClass('digital');
+      } else {
+        secInputElement.hide();
+        angular.element(element.children()[2]).hide(); // SPAN with the colon
+      }
+
+      function timeUpdate(elem, maxDigit, multiplier) {
+        var aElem = angular.element(elem);
+        if (aElem.val() < 0)
+          aElem.val(0);
+        if (aElem.val() > maxDigit)
+          aElem.val(maxDigit);
+
+        var modelElem = angular.element('[ng-model="' + attrs['modelname'] + '"]');
+        
+        modelElem.val(Number(modelElem.val()) + ((aElem.val() - aElem.data('original')) * multiplier));
+        modelElem.trigger('input');
+        aElem.data('original', aElem.val());
+        // Maintain double digits
+        if (aElem.val() < 10)
+          aElem.val("0" + aElem.val());
+      }
+
+      $scope.hourUpdate = function(elem) {
+        timeUpdate(elem, 23, 3600000);
+      };
+
+      $scope.minUpdate = function(elem) {
+        timeUpdate(elem, 59, 60000);
+      };
+
+      $scope.secUpdate = function(elem) {
+        timeUpdate(elem, 59, 1000);
+      };
+    }
+  };
+}]);
+ 	
+</script>
+<style>
+.digital {
+	font-family: 'Black Ops One', cursive;
+}
+
+input.digital {
+	width: 45px;
+	font-size: larger;
+}
+</style>
+</head>
+<body>
+<div ng-controller="DemoCtrl">
+  	<!-- We use a hidden text input, because input type hidden doesn't let us fire the input event. -->
+  	<div>
+  		Start: <input type="text" style="display:none" ng-model="program.startTime" />
+  		<editable-digital-clock modelname="program.startTime" value="program.startTime" hideseconds="true" />
+  	</div>
+  	<div>
+	  	Stop: <input type="text" style="display:none" ng-model="program.stopTime" />
+	  	<editable-digital-clock modelname="program.stopTime" value="program.stopTime" />
+	</div>
+	<div>
+	  	<!-- To show that the model OUTSIDE the scope of the directive is being altered as well. -->
+	  	{{program.startTime | date : "yyyy-MM-dd HH:mm:ss"}} to {{program.stopTime | date : "HH:mm:ss"}}
+	</div>
+</div>
+</body>
+</html>
